@@ -269,11 +269,14 @@ table.t tr.click{cursor:pointer}
 window.SUPABASE_URL = 'https://oeevxjbyfutrzaiqytbx.supabase.co';
 window.SUPABASE_KEY = 'sb_publishable_G7wM8Ki1nBAr1F0JIwyUQg_jPV7uGyy';
 </script>
+<script src="img/manifest.js"></script>
 <script>
 /* ======================================================================
    Core helpers
    ====================================================================== */
 var S = { info:{}, student:null, exam:null, admin:{token:null, tab:'dash'}, imgCache:{} };
+/* รูปข้อสอบที่เป็นไฟล์ในโฟลเดอร์ img/ (โหลดจาก GitHub Pages โดยตรง) */
+if(window.IMG_FILES){ for(var _k in window.IMG_FILES) S.imgCache[_k]=window.IMG_FILES[_k]; }
 var SUBJECTS = ['ภาษาไทย','คณิตศาสตร์','วิทยาศาสตร์','ภาษาอังกฤษ'];
 var DIFFS = ['ง่าย','ปานกลาง','ยาก'];
 var TYPES = {mcq:'ปรนัย (เลือกตอบ)', numeric:'เติมตัวเลข', short:'เติมคำตอบสั้น', multi_tf:'เลือกตอบเชิงซ้อน (ใช่/ไม่ใช่)', order:'เรียงลำดับ', essay:'อัตนัย (เขียนตอบ)'};
@@ -343,15 +346,17 @@ function confirmBox(msg, okText, cls){
 }
 
 /* images (lazy) */
+/* ถ้าไฟล์รูปใน img/ โหลดไม่ได้ ให้ดึงจากฐานข้อมูล Supabase แทน */
+function imgFallback(el){ var id=el.getAttribute('data-id'); if(!id||el._fb) return; el._fb=1; call('getImages',{ids:[id]},{silent:true,quiet:true}).then(function(m){ if(m&&m[id]){ S.imgCache[id]=m[id]; el.src=m[id]; } }).catch(function(){}); }
 function imgHtml(id, cls){
   if(!id) return '';
-  if(S.imgCache[id]) return '<img class="'+(cls||'q-img')+'" src="'+S.imgCache[id]+'" alt="ภาพประกอบ">';
+  if(S.imgCache[id]) return '<img class="'+(cls||'q-img')+'" src="'+S.imgCache[id]+'" data-id="'+esc(id)+'" onerror="imgFallback(this)" alt="ภาพประกอบ">';
   return '<div class="img-ph" data-img="'+esc(id)+'" data-cls="'+(cls||'q-img')+'">กำลังโหลดภาพ…</div>';
 }
 function fillImages(root){
   var phs=$all('[data-img]',root); if(!phs.length) return Promise.resolve();
   var ids=[]; phs.forEach(function(p){ var i=p.getAttribute('data-img'); if(ids.indexOf(i)<0 && !S.imgCache[i]) ids.push(i); });
-  var apply=function(){ $all('[data-img]',root).forEach(function(p){ var i=p.getAttribute('data-img'); if(S.imgCache[i]){ var im=document.createElement('img'); im.className=p.getAttribute('data-cls'); im.src=S.imgCache[i]; im.alt='ภาพประกอบ'; p.replaceWith(im);} else if(p._tried){ p.textContent='โหลดภาพไม่สำเร็จ'; } p._tried=1; }); };
+  var apply=function(){ $all('[data-img]',root).forEach(function(p){ var i=p.getAttribute('data-img'); if(S.imgCache[i]){ var im=document.createElement('img'); im.className=p.getAttribute('data-cls'); im.setAttribute('data-id',i); im.onerror=function(){ imgFallback(im); }; im.src=S.imgCache[i]; im.alt='ภาพประกอบ'; p.replaceWith(im);} else if(p._tried){ p.textContent='โหลดภาพไม่สำเร็จ'; } p._tried=1; }); };
   if(!ids.length){ apply(); return Promise.resolve(); }
   return loadImages(ids).then(apply, apply);
 }
